@@ -1,0 +1,16 @@
+{
+  "provider": "Neon",
+  "organization_id": "org-wild-recipe-04878787",
+  "organization_plan_verified": "free",
+  "project_id": "old-glade-05326492",
+  "project_name": "sindh-flood-watch",
+  "region": "aws-ap-southeast-1",
+  "postgres_version": 18,
+  "database": "sindh",
+  "role": "sindh_owner",
+  "production_branch_id": "br-crimson-silence-az9e2ooc",
+  "validation_branch_id": "br-damp-rice-azfmj2a9",
+  "alembic_revision_verified": "0002",
+  "contains_credentials": false,
+  "website_deployed": false
+}

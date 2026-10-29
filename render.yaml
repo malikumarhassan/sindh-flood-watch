@@ -1,0 +1,39 @@
+# Free demo only. No workers, cron jobs, managed Render databases or paid plans.
+# These user-supplied values are entered privately during setup.
+services:
+  - type: web
+    name: sindh-flood-watch-api
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.lock.txt
+    startCommand: python scripts/render-api-start.py
+    healthCheckPath: /health/ready
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.9
+      - key: DATABASE_URL
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: ENABLE_REAL_NOTIFICATIONS
+        value: "false"
+  - type: web
+    name: sindh-flood-watch-web
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build -w @sfw/web
+    startCommand: npm run start -w @sfw/web -- --port $PORT
+    healthCheckPath: /
+    envVars:
+      - key: NODE_VERSION
+        value: 24.18.0
+      - key: NEXT_TELEMETRY_DISABLED
+        value: "1"
+      - key: NEXT_PUBLIC_API_URL
+        value: /api
+      - key: NEXT_PUBLIC_DEMO_MODE
+        value: "false"
+      - key: API_UPSTREAM_URL
+        sync: false

@@ -1,0 +1,33 @@
+{
+  "name": "sindh-flood-watch",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "web": "npm run dev -w @sfw/web",
+    "mobile": "npm run start -w @sfw/mobile",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "eslint apps packages",
+    "build": "npm run build -w @sfw/web"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.3",
+    "@types/react": "^19.2.0",
+    "@types/node": "^24.0.0",
+    "eslint": "^9.39.0",
+    "eslint-config-next": "16.4.3",
+    "@playwright/test": "^1.56.0",
+    "prettier": "^3.6.2"
+  },
+  "overrides": {
+    "zod": "^4.6.6"
+  },
+  "dependencies": {
+    "expo": "58.0.21",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "react-native": "0.88.1"
+  }
+}

@@ -1,0 +1,107 @@
+# Standalone configuration: use -f compose.production.yaml ONLY, not the local file.
+x-backend: &backend
+  build:
+    context: .
+    dockerfile: Dockerfile
+  image: sindh-flood-watch-backend:local
+  init: true
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+services:
+  db:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: sindh
+      POSTGRES_USER: sindh
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set a URL-safe random database password}
+    volumes:
+      - postgres:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sindh -d sindh"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+  migrate:
+    <<: *backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://sindh:${POSTGRES_PASSWORD}@db/sindh
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      db:
+        condition: service_healthy
+  api:
+    <<: *backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+psycopg://sindh:${POSTGRES_PASSWORD}@db/sindh
+      CORS_ORIGINS: https://${DOMAIN:?Set your bare public hostname}
+      COOKIE_SECURE: "true"
+    # Only the Docker network can reach this API. Trust forwarded client addresses
+    # from the in-network Caddy proxy so per-IP limits do not group all visitors.
+    command: ["uvicorn", "services.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--root-path", "/api", "--proxy-headers", "--forwarded-allow-ips", "*", "--no-access-log"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready',timeout=4)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+  worker:
+    <<: *backend
+    restart: unless-stopped
+    command: ["python", "-u", "-m", "services.worker.main"]
+    environment:
+      DATABASE_URL: postgresql+psycopg://sindh:${POSTGRES_PASSWORD}@db/sindh
+      ENABLE_REAL_NOTIFICATIONS: ${ENABLE_REAL_NOTIFICATIONS:-false}
+      EXPO_ACCESS_TOKEN: ${EXPO_ACCESS_TOKEN:-}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+    healthcheck:
+      test: ["CMD", "python", "-m", "services.worker.healthcheck"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: /api
+        NEXT_PUBLIC_DEMO_MODE: ${PUBLIC_DEMO_MODE:-false}
+    restart: unless-stopped
+    init: true
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      api:
+        condition: service_healthy
+  proxy:
+    image: caddy:2
+    restart: unless-stopped
+    ports: ["80:80", "443:443", "443:443/udp"]
+    environment:
+      DOMAIN: ${DOMAIN:?Set your bare public hostname}
+      ACME_EMAIL: ${ACME_EMAIL:?Set your certificate contact email}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      web:
+        condition: service_healthy
+volumes:
+  postgres:
+  caddy_data:
+  caddy_config:

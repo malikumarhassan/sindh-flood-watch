@@ -1,0 +1,1 @@
+{"expo":{"name":"Sindh Flood Watch","slug":"sindh-flood-watch","version":"1.0.0","orientation":"portrait","userInterfaceStyle":"light","ios":{"bundleIdentifier":"org.sindhfloodwatch.app","supportsTablet":true},"android":{"package":"org.sindhfloodwatch.app"},"plugins":["expo-notifications","expo-secure-store"],"extra":{"eas":{"projectId":""}}}}

@@ -1,0 +1,42 @@
+services:
+  db:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: sindh
+      POSTGRES_USER: sindh
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sindh"]
+      interval: 5s
+      retries: 12
+  migrate:
+    build: .
+    environment:
+      DATABASE_URL: postgresql+psycopg://sindh:${POSTGRES_PASSWORD}@db/sindh
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      db:
+        condition: service_healthy
+  api:
+    build: .
+    ports: ["127.0.0.1:8000:8000"]
+    environment:
+      DATABASE_URL: postgresql+psycopg://sindh:${POSTGRES_PASSWORD}@db/sindh
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:8081}
+      COOKIE_SECURE: "false"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+  worker:
+    build: .
+    command: ["python", "-m", "services.worker.main"]
+    environment:
+      DATABASE_URL: postgresql+psycopg://sindh:${POSTGRES_PASSWORD}@db/sindh
+      ENABLE_REAL_NOTIFICATIONS: "false"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+volumes:
+  postgres:
