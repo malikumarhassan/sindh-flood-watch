@@ -353,3 +353,18 @@ def test_manually_approved_live_record_is_not_in_demo(system):
 def test_neon_url_selects_psycopg_and_preserves_tls(prefix):
     suffix = "test_user:test%40password@ep-example.neon.tech/neondb?sslmode=require&channel_binding=require"
     assert models.database_url(prefix + suffix) == "postgresql+psycopg://" + suffix
+
+
+def test_demo_seed_is_idempotent_and_never_populates_live_collection(system):
+    from services.api.core import seed
+
+    client, factory = system
+    with factory() as db:
+        seed(db)
+        seed(db)
+        assert list(db.scalars(select(models.Delivery))) == []
+    records = client.get("/advisories?demo=true").json()
+    assert len(records) == 3
+    assert {a["districts"][0] for a in records} == {"Dadu", "Sukkur", "Thatta"}
+    assert all(a["demo"] and DEMO in a["body"] for a in records)
+    assert client.get("/advisories?demo=false").json() == []

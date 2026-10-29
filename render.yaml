@@ -19,6 +19,8 @@ services:
         value: "true"
       - key: ENABLE_REAL_NOTIFICATIONS
         value: "false"
+      - key: SFW_SEED_DEMO
+        value: "true"
   - type: web
     name: sindh-flood-watch-web
     runtime: node
@@ -34,6 +36,6 @@ services:
       - key: NEXT_PUBLIC_API_URL
         value: /api
       - key: NEXT_PUBLIC_DEMO_MODE
-        value: "false"
+        value: "true"
       - key: API_UPSTREAM_URL
         sync: false
