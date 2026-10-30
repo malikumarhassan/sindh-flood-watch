@@ -369,19 +369,53 @@ def test_demo_seed_is_idempotent_and_never_populates_live_collection(system):
     assert all(a["demo"] and DEMO in a["body"] for a in records)
     assert client.get("/advisories?demo=false").json() == []
 
+
 def test_chat_summarizes_historical_report_without_dumping_tables(system):
     client, _ = system
     authenticate(client)
     data = bulletin(
-        title='DEMO - Historical flood report',
-        issued='2022-11-18T00:00:00+00:00',
-        body=DEMO + '. Historical report. Figures cover Sindh overall, not Dadu specifically.\nDeaths and injured\nInfrastructure and houses\nBISP relief assistance\n' + 'raw table row 12345\n' * 100,
+        title="DEMO - Historical flood report",
+        issued="2022-11-18T00:00:00+00:00",
+        body=DEMO
+        + ". Historical report. Figures cover Sindh overall, not Dadu specifically.\nDeaths and injured\nInfrastructure and houses\nBISP relief assistance\n"
+        + "raw table row 12345\n" * 100,
     )
     publish(client, data)
-    answer = client.post('/chat', json={'question': 'Latest Dadu advisory?', 'demo': True}).json()
-    assert len(answer['answer']) < 800
-    assert '18 November 2022' in answer['answer']
-    assert 'not a current flood warning' in answer['answer']
-    assert 'province-wide, not specific to Dadu' in answer['answer']
-    assert 'raw table row' not in answer['answer']
-    assert answer['citations'][0]['demo'] is True
+    answer = client.post("/chat", json={"question": "Latest Dadu advisory?", "demo": True}).json()
+    assert len(answer["answer"]) < 800
+    assert "18 November 2022" in answer["answer"]
+    assert "not a current flood warning" in answer["answer"]
+    assert "province-wide, not specific to Dadu" in answer["answer"]
+    assert "raw table row" not in answer["answer"]
+    assert answer["citations"][0]["demo"] is True
+
+
+@pytest.mark.parametrize(
+    "language,question,expected",
+    [
+        ("ur", "دادو کی تازہ اطلاع بتائیں", "تاریخی رپورٹ"),
+        ("sd", "دادو بابت تازو اطلاع ٻڌايو", "تاريخي رپورٽ"),
+    ],
+)
+def test_chat_localized_history_and_unsupported_safety(system, language, question, expected):
+    client, _ = system
+    authenticate(client)
+    publish(
+        client,
+        bulletin(
+            title="Historical report",
+            issued="2022-11-18T00:00:00+00:00",
+            body=DEMO + ". Historical report. Sindh overall, not Dadu specifically.",
+        ),
+    )
+    result = client.post(
+        "/chat", json={"question": question, "district": "Dadu", "demo": True, "language": language}
+    ).json()
+    assert expected in result["answer"]
+    assert "دادو" in result["answer"]
+    assert result["citations"][0]["issued"]
+    denied = client.post(
+        "/chat", json={"question": "محفوظ", "district": "Dadu", "demo": True, "language": language}
+    ).json()
+    assert denied["citations"] == []
+    assert "تصدیق" in denied["answer"] or "تصديق" in denied["answer"]

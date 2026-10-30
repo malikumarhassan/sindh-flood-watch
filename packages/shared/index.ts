@@ -71,14 +71,21 @@ export const labels = {
     settings: "اطلاع جون سيٽنگون",
   },
 };
-export function date(value: number | null | undefined) {
+export function date(
+  value: number | null | undefined,
+  language: Language = "en",
+) {
   return value
-    ? new Intl.DateTimeFormat("en-PK", {
+    ? new Intl.DateTimeFormat(language === "en" ? "en-PK" : language + "-PK", {
         timeZone: "Asia/Karachi",
         dateStyle: "medium",
         timeStyle: "short",
       }).format(new Date(value * 1000)) + " PKT"
-    : "Not available";
+    : language === "ur"
+      ? "دستیاب نہیں"
+      : language === "sd"
+        ? "موجود ناهي"
+        : "Not available";
 }
 export function client(base: string) {
   return async function api<T>(

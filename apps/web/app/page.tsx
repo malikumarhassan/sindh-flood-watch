@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
 import Image from "next/image";
+import { translate } from "./i18n";
 import {
   Advisory,
   Source,
@@ -57,6 +58,9 @@ export default function Page() {
     [consent, setConsent] = useState(false),
     [selected, setSelected] = useState<string[]>(["Dadu"]),
     [notice, setNotice] = useState("");
+  const t = (text: string) => translate(language, text);
+  const formatDate = (value: number | null | undefined) =>
+    date(value, language);
   async function refresh() {
     const requestGeneration = ++generation.current;
     setError("");
@@ -111,6 +115,9 @@ export default function Page() {
     void refresh();
   }, [demo]);
   useEffect(() => {
+    const preferredLanguage = localStorage.getItem("sfw-language");
+    if (preferredLanguage === "ur" || preferredLanguage === "sd")
+      setLanguage(preferredLanguage);
     const v = localStorage.getItem("sfw-subscription");
     if (process.env.NODE_ENV === "production" && "serviceWorker" in navigator) {
       void navigator.serviceWorker.register("/sw.js").catch(() => {});
@@ -154,7 +161,7 @@ export default function Page() {
     try {
       const result = await api<ChatAnswer>("/chat", {
         method: "POST",
-        body: JSON.stringify({ question: value, district, demo }),
+        body: JSON.stringify({ question: value, district, demo, language }),
       });
       if (requestGeneration === generation.current) setAnswer(result);
     } catch (e) {
@@ -213,11 +220,12 @@ export default function Page() {
       <div className="utility-bar">
         <div className="utility-inner">
           <span>
-            For the people of Sindh <span className="utility-divider">|</span>{" "}
-            Independent information service
+            {t("For the people of Sindh")}
+            <span className="utility-divider">|</span>{" "}
+            {t("Independent information service")}
           </span>
           <button onClick={() => navigate("admin")}>
-            Administrator login ↗
+            {t("Administrator login ↗")}
           </button>
         </div>
       </div>
@@ -226,7 +234,7 @@ export default function Page() {
           <Image
             className="brand-emblem"
             src="/branding/sindh-emblem.png"
-            alt="Sindh emblem"
+            alt={t("Sindh emblem")}
             width={55}
             height={63}
             priority
@@ -235,11 +243,13 @@ export default function Page() {
             <span className="brand-urdu" lang="ur" dir="rtl">
               سندھ فلڈ واچ
             </span>
-            Sindh Flood Watch
-            <span className="brand-small">INDEPENDENT FLOOD INFORMATION</span>
+            {t("Sindh Flood Watch")}
+            <span className="brand-small">
+              {t("INDEPENDENT FLOOD INFORMATION")}
+            </span>
           </span>
         </a>
-        <div className="nav-label">YOUR INFORMATION HUB</div>
+        <div className="nav-label">{t("YOUR INFORMATION HUB")}</div>
         <nav>
           {(
             ["home", "advisories", "chat", "preparedness", "settings"] as Tab[]
@@ -257,30 +267,45 @@ export default function Page() {
         <div className="sidebar-bottom">
           <div className="independent">
             <span>◇</span>
-            <strong>Independent. Source-led.</strong>
-            <p>Public information, with provenance you can check.</p>
+            <strong>{t("Independent. Source-led.")}</strong>
+            <p>{t("Public information, with provenance you can check.")}</p>
           </div>
           <button className="admin-link" onClick={() => navigate("admin")}>
-            ⚙ Administrator workspace
+            {t("⚙ Administrator workspace")}
           </button>
-          <small>Made for the people of Sindh</small>
+          <small>{t("Made for the people of Sindh")}</small>
         </div>
       </aside>
       <div className="workspace">
         <header>
           <span className="breadcrumb">
-            Sindh Flood Watch <span>/</span> {tab === "home" ? "Overview" : tab}
+            {t("Sindh Flood Watch")}
+            <span>/</span>{" "}
+            {tab === "admin"
+              ? t("ADMINISTRATOR WORKSPACE")
+              : labels[language][tab]}
           </span>
           <div className="header-actions">
-            <span className="local-tag">◇ No government endorsement</span>
+            <span className="local-tag">
+              {t("◇ No government endorsement")}
+            </span>
             <select
-              aria-label="Interface language"
+              aria-label={t("Interface language")}
               value={language}
-              onChange={(e) => setLanguage(e.target.value as Language)}
+              onChange={(e) => {
+                const next = e.target.value as Language;
+                localStorage.setItem("sfw-language", next);
+                generation.current++;
+                setLanguage(next);
+                setAnswer(null);
+                setQuestion("");
+                setBusy(false);
+                void refresh();
+              }}
             >
-              <option value="en">English</option>
-              <option value="ur">اردو — draft UI</option>
-              <option value="sd">سنڌي — draft UI</option>
+              <option value="en">{t("English")}</option>
+              <option value="ur">اردو</option>
+              <option value="sd">سنڌي</option>
             </select>
           </div>
         </header>
@@ -289,73 +314,90 @@ export default function Page() {
             <span>◈</span>
             <div>
               <strong>
-                {demo ? "DEMO — NOT A REAL WARNING" : "LIVE INFORMATION MODE"}
+                {demo
+                  ? t("DEMO — NOT A REAL WARNING")
+                  : t("LIVE INFORMATION MODE")}
               </strong>
               <span>
                 {demo
-                  ? "Fictional advisories for testing. No real flood conditions are represented."
-                  : "No verified feed is connected. Missing advisories do not mean safe conditions."}
+                  ? t(
+                      "Fictional advisories for testing. No real flood conditions are represented.",
+                    )
+                  : t(
+                      "No verified feed is connected. Missing advisories do not mean safe conditions.",
+                    )}
               </span>
             </div>
             <button onClick={switchMode}>
-              {demo ? "View live mode" : "Return to demo"} ↗
+              {demo ? t("View live mode") : t("Return to demo")} ↗
             </button>
           </div>
           {language !== "en" && (
             <div className="notice">
-              Interface translation draft. Emergency guidance remains in
-              reviewed English. Human review is required before translated
-              guidance can be published.
+              {t(
+                "Interface translation draft. Emergency guidance remains in reviewed English. Human review is required before translated guidance can be published.",
+              )}
             </div>
           )}
           {cached && (
             <div className="notice">
-              Offline / connection unavailable. Cached information saved{" "}
-              {date(Date.parse(cached) / 1000)}. This is not a fresh warning.
+              {t("Offline / connection unavailable. Cached information saved")}{" "}
+              {formatDate(Date.parse(cached) / 1000)}
+              {t(". This is not a fresh warning.")}
             </div>
           )}
           {error && (
             <div role="alert" className="error">
-              Connection unavailable: {error}. Missing data does not establish
-              safety. <button onClick={refresh}>Retry</button>
+              {t("Connection unavailable:")}
+              {error}
+              {t(". Missing data does not establish safety.")}
+              <button onClick={refresh}>{t("Retry")}</button>
             </div>
           )}
           {tab === "admin" ? (
-            <AdminPanel />
+            <AdminPanel language={language} />
           ) : (
             <>
               <div className="page-heading">
                 <div>
                   <div className="eyebrow">
-                    INFORMATION THAT HELPS YOU PREPARE
+                    {t("INFORMATION THAT HELPS YOU PREPARE")}
                   </div>
                   <h1>
                     {detail
-                      ? "Advisory details"
+                      ? t("Advisory details")
                       : tab === "home"
-                        ? "Stay informed. Stay prepared."
+                        ? t("Stay informed. Stay prepared.")
                         : tab === "chat"
-                          ? "Ask Flood Watch"
+                          ? t("Ask Flood Watch")
                           : tab === "settings"
-                            ? "Your alerts, your choices"
+                            ? t("Your alerts, your choices")
                             : tab === "preparedness"
-                              ? "Prepare with confidence"
-                              : "District advisories"}
+                              ? t("Prepare with confidence")
+                              : t("District advisories")}
                   </h1>
                   <p>
                     {tab === "home"
-                      ? "Flood information for your district, with sources in view."
+                      ? t(
+                          "Flood information for your district, with sources in view.",
+                        )
                       : tab === "chat"
-                        ? "Answers grounded in published information. No predictions or safety decisions."
+                        ? t(
+                            "Answers grounded in published information. No predictions or safety decisions.",
+                          )
                         : tab === "settings"
-                          ? "Choose districts manually. Precise location is never required."
+                          ? t(
+                              "Choose districts manually. Precise location is never required.",
+                            )
                           : tab === "preparedness"
-                            ? "Practical information to keep within reach."
-                            : "Read the original wording, source and validity of each bulletin."}
+                            ? t("Practical information to keep within reach.")
+                            : t(
+                                "Read the original wording, source and validity of each bulletin.",
+                              )}
                   </p>
                 </div>
                 <button className="outline" onClick={refresh}>
-                  ↻ Refresh information
+                  {t("↻ Refresh information")}
                 </button>
               </div>
               {(tab === "home" || tab === "advisories") && !detail && (
@@ -363,31 +405,37 @@ export default function Page() {
                   <section className="district-bar">
                     <div className="district-icon">⌖</div>
                     <div>
-                      <label htmlFor="district">YOUR DISTRICT</label>
+                      <label htmlFor="district">{t("YOUR DISTRICT")}</label>
                       <select
                         id="district"
-                        value={district}
+                        value={t(district)}
                         onChange={(e) => setDistrict(e.target.value)}
                       >
                         {districts.map((d) => (
-                          <option key={d}>{d}</option>
+                          <option key={d} value={d}>
+                            {t(d)}
+                          </option>
                         ))}
                       </select>
                     </div>
-                    <span>All times shown in Pakistan Standard Time (PKT)</span>
+                    <span>
+                      {t("All times shown in Pakistan Standard Time (PKT)")}
+                    </span>
                     <a href="#settings" onClick={() => navigate("settings")}>
-                      ♧ Manage alerts →
+                      {t("♧ Manage alerts →")}
                     </a>
                   </section>
                   <div className="stats">
                     <div>
                       <span className="stat-symbol blue">≋</span>
                       <div>
-                        <span>District advisories</span>
+                        <span>{t("District advisories")}</span>
                         <strong>
                           {filtered.length}
                           <small>
-                            {demo ? "fictional samples" : "published records"}
+                            {demo
+                              ? t("fictional samples")
+                              : t("published records")}
                           </small>
                         </strong>
                       </div>
@@ -395,23 +443,25 @@ export default function Page() {
                     <div>
                       <span className="stat-symbol amber">◷</span>
                       <div>
-                        <span>Official source status</span>
+                        <span>{t("Official source status")}</span>
                         <strong>
-                          Unavailable
-                          <small>Automated integration pending</small>
+                          {t("Unavailable")}
+                          <small>{t("Automated integration pending")}</small>
                         </strong>
                       </div>
                     </div>
                     <div>
                       <span className="stat-symbol teal">◇</span>
                       <div>
-                        <span>Your information</span>
+                        <span>{t("Your information")}</span>
                         <strong>
-                          {cached ? "Cached copy" : "Source transparent"}
+                          {cached ? t("Cached copy") : t("Source transparent")}
                           <small>
                             {updated
-                              ? "Retrieved " + date(Date.parse(updated) / 1000)
-                              : "No retrieval yet"}
+                              ? t("Retrieved") +
+                                " " +
+                                formatDate(Date.parse(updated) / 1000)
+                              : t("No retrieval yet")}
                           </small>
                         </strong>
                       </div>
@@ -423,43 +473,47 @@ export default function Page() {
                         <div>
                           <h2>
                             {tab === "home"
-                              ? "Latest district advisories"
-                              : "Browse advisories"}
+                              ? t("Latest district advisories")
+                              : t("Browse advisories")}
                           </h2>
                           <p>
-                            {district} ·{" "}
-                            {demo ? "Demo collection" : "Official records"}
+                            {t(district)} ·{" "}
+                            {demo
+                              ? t("Demo collection")
+                              : t("Official records")}
                           </p>
                         </div>
-                        <span className="pill">{filtered.length} records</span>
+                        <span className="pill">
+                          {filtered.length} {t("records")}
+                        </span>
                       </div>
                       <div className="filters">
                         <input
-                          aria-label="Search advisories"
-                          placeholder="Search advisories…"
+                          aria-label={t("Search advisories")}
+                          placeholder={t("Search advisories…")}
                           value={q}
                           onChange={(e) => setQ(e.target.value)}
                         />
                         <select
-                          aria-label="Flood type"
+                          aria-label={t("Flood type")}
                           value={hazard}
                           onChange={(e) => setHazard(e.target.value)}
                         >
-                          <option value="">All flood types</option>
-                          <option value="river">River flooding</option>
-                          <option value="flash">Flash flooding</option>
-                          <option value="urban">Urban flooding</option>
+                          <option value="">{t("All flood types")}</option>
+                          <option value="river">{t("River flooding")}</option>
+                          <option value="flash">{t("Flash flooding")}</option>
+                          <option value="urban">{t("Urban flooding")}</option>
                         </select>
                         {tab === "advisories" && (
                           <>
                             <input
-                              aria-label="Official severity"
-                              placeholder="Exact official severity"
+                              aria-label={t("Official severity")}
+                              placeholder={t("Exact official severity")}
                               value={severity}
                               onChange={(e) => setSeverity(e.target.value)}
                             />
                             <input
-                              aria-label="Issued since"
+                              aria-label={t("Issued since")}
                               type="date"
                               value={since}
                               onChange={(e) => setSince(e.target.value)}
@@ -470,11 +524,11 @@ export default function Page() {
                       {filtered.length === 0 ? (
                         <div className="empty">
                           <span>◇</span>
-                          <h3>No advisory found</h3>
+                          <h3>{t("No advisory found")}</h3>
                           <p>
-                            We have no matching published information. This does
-                            not mean there is no flood risk. Check official
-                            channels.
+                            {t(
+                              "We have no matching published information. This does not mean there is no flood risk. Check official channels.",
+                            )}
                           </p>
                         </div>
                       ) : (
@@ -487,84 +541,114 @@ export default function Page() {
                                   : a.hazard === "flash"
                                     ? "ϟ"
                                     : "▦"}{" "}
-                                {a.hazard} flooding
+                                {t(
+                                  a.hazard === "river"
+                                    ? "River flooding"
+                                    : a.hazard === "flash"
+                                      ? "Flash flooding"
+                                      : "Urban flooding",
+                                )}
                               </span>
                               <span className="severity">{a.severity}</span>
                             </div>
                             {a.demo && (
                               <div className="demo-label">
-                                DEMO — NOT A REAL WARNING
+                                {t("DEMO — NOT A REAL WARNING")}
                               </div>
                             )}
-                            <h3>
+                            <p className="fine-print">
+                              {t(
+                                "Original bulletin — shown in its published language",
+                              )}
+                            </p>
+                            <h3
+                              lang={a.language}
+                              dir={a.language === "en" ? "ltr" : "rtl"}
+                            >
                               <button onClick={() => setDetail(a)}>
                                 {a.title} <span>↗</span>
                               </button>
                             </h3>
-                            <p>{a.body}</p>
+                            <p
+                              lang={a.language}
+                              dir={a.language === "en" ? "ltr" : "rtl"}
+                            >
+                              {a.body}
+                            </p>
                             <div className="advisory-meta">
-                              <span>Valid until {date(a.expires)}</span>
+                              <span>
+                                {t("Valid until")}
+                                {formatDate(a.expires)}
+                              </span>
                               <span>⌖ {a.districts.join(", ")}</span>
-                              <span>◷ {date(a.issued)}</span>
+                              <span>◷ {formatDate(a.issued)}</span>
                             </div>
                             <div className="advisory-footer">
                               <span>{a.authority}</span>
                               <strong>
                                 {cached
-                                  ? "Cached · verify validity"
+                                  ? t("Cached · verify validity")
                                   : a.current
-                                    ? "Within stated validity"
+                                    ? t("Within stated validity")
                                     : a.state === "published"
-                                      ? "Outdated / not currently valid"
-                                      : a.state}
+                                      ? t("Outdated / not currently valid")
+                                      : t(a.state)}
                               </strong>
                             </div>
                           </article>
                         ))
                       )}
                       <div className="panel-foot">
-                        ◷ Validity is taken from the bulletin. No district-level
-                        safety inference.
+                        {t(
+                          "◷ Validity is taken from the bulletin. No district-level safety inference.",
+                        )}
                       </div>
                     </section>
                     <div className="right-column">
                       <section className="ask-card">
                         <span className="large-icon">◌</span>
-                        <div className="eyebrow">A LITTLE CLARITY HELPS</div>
+                        <div className="eyebrow">
+                          {t("A LITTLE CLARITY HELPS")}
+                        </div>
                         <h2>
-                          Questions about
+                          {t("Questions about")}
                           <br />
-                          flood information?
+                          {t("flood information?")}
                         </h2>
                         <p>
-                          Find information from published advisories and
-                          preparedness guidance, with citations.
+                          {t(
+                            "Find information from published advisories and preparedness guidance, with citations.",
+                          )}
                         </p>
                         <button onClick={() => navigate("chat")}>
-                          Ask Flood Watch <span>→</span>
+                          {t("Ask Flood Watch")}
+                          <span>→</span>
                         </button>
-                        <small>Structured retrieval · No LLM required</small>
+                        <small>
+                          {t("Structured retrieval · No LLM required")}
+                        </small>
                       </section>
                       <section className="panel source-panel">
                         <div className="section-heading">
-                          <h2>Source transparency</h2>
+                          <h2>{t("Source transparency")}</h2>
                           <span>◇</span>
                         </div>
                         {sources.map((s) => (
                           <div className="source" key={s.name}>
-                            <strong>{s.name}</strong>
+                            <strong>{t(s.name)}</strong>
                             <span className="source-status">
                               ◷{" "}
                               {s.stale
-                                ? "Unavailable / stale"
-                                : "Recently checked"}
+                                ? t("Unavailable / stale")
+                                : t("Recently checked")}
                             </span>
-                            <p>{s.status}</p>
+                            <p>{t(s.status)}</p>
                             <small>
-                              Last successful check: {date(s.last_success)}
+                              {t("Last successful check:")}
+                              {formatDate(s.last_success)}
                             </small>
                             <a target="_blank" rel="noreferrer" href={s.url}>
-                              Visit official source ↗
+                              {t("Visit official source ↗")}
                             </a>
                           </div>
                         ))}
@@ -576,42 +660,54 @@ export default function Page() {
               {detail && (
                 <section className="panel detail">
                   <button className="outline" onClick={() => setDetail(null)}>
-                    ← Back to advisories
+                    {t("← Back to advisories")}
                   </button>
                   {detail.demo && (
-                    <p className="demo-label">DEMO — NOT A REAL WARNING</p>
+                    <p className="demo-label">
+                      {t("DEMO — NOT A REAL WARNING")}
+                    </p>
                   )}
                   <h2>{detail.title}</h2>
-                  <p className="original">{detail.body}</p>
+                  <p className="fine-print">
+                    {t("Original bulletin — shown in its published language")}
+                  </p>
+                  <p
+                    className="original"
+                    lang={detail.language}
+                    dir={detail.language === "en" ? "ltr" : "rtl"}
+                  >
+                    {detail.body}
+                  </p>
                   <dl>
                     {Object.entries({
                       "Issuing authority": detail.authority,
                       Districts: detail.districts.join(", "),
                       "Flood type": detail.hazard,
                       "Original severity": detail.severity,
-                      "Official issue time": date(detail.issued),
-                      "Valid until": date(detail.expires),
-                      Ingested: date(detail.ingested),
+                      "Official issue time": formatDate(detail.issued),
+                      "Valid until": formatDate(detail.expires),
+                      Ingested: formatDate(detail.ingested),
                       Status:
                         detail.current && !cached
-                          ? "Within stated validity"
+                          ? t("Within stated validity")
                           : cached
-                            ? "Cached; verify with source"
-                            : detail.state,
+                            ? t("Cached; verify with source")
+                            : t(detail.state),
                     }).map(([k, v]) => (
                       <div key={k}>
-                        <dt>{k}</dt>
-                        <dd>{v}</dd>
+                        <dt>{t(k)}</dt>
+                        <dd>{t(v)}</dd>
                       </div>
                     ))}
                   </dl>
                   <a href={detail.source_url} target="_blank" rel="noreferrer">
-                    Open original source reference ↗
+                    {t("Open original source reference ↗")}
                   </a>
                   {detail.demo && (
                     <p>
-                      Reference points to an official website for context; this
-                      fictional bulletin was not issued by that authority.
+                      {t(
+                        "Reference points to an official website for context; this fictional bulletin was not issued by that authority.",
+                      )}
                     </p>
                   )}
                 </section>
@@ -620,17 +716,21 @@ export default function Page() {
                 <section className="panel chat-panel">
                   <div className="chat-intro">
                     <span className="large-icon">◌</span>
-                    <h2>What would you like to know?</h2>
+                    <h2>{t("What would you like to know?")}</h2>
                     <p>
-                      Selected district: <strong>{district}</strong>. Answers
-                      cite stored evidence and its date.
+                      {t("Selected district:")}
+                      <strong>{t(district)}</strong>
+                      {t(". Answers cite stored evidence and its date.")}
                     </p>
                   </div>
                   <div className="suggestions">
                     {[
-                      "What is the latest advisory for " + district + "?",
-                      "How should I prepare?",
-                      "Is my village safe?",
+                      t("What is the latest advisory for") +
+                        " " +
+                        t(district) +
+                        "?",
+                      t("How should I prepare?"),
+                      t("Is my village safe?"),
                     ].map((s) => (
                       <button
                         key={s}
@@ -649,23 +749,23 @@ export default function Page() {
                       void ask();
                     }}
                   >
-                    <label htmlFor="question">Your question</label>
+                    <label htmlFor="question">{t("Your question")}</label>
                     <div className="question-row">
                       <input
                         id="question"
                         value={question}
                         onChange={(e) => setQuestion(e.target.value)}
-                        placeholder="Ask about advisories or preparedness…"
+                        placeholder={t("Ask about advisories or preparedness…")}
                         maxLength={1000}
                       />
                       <button className="primary" disabled={busy}>
-                        {busy ? "Retrieving…" : "Ask →"}
+                        {busy ? t("Retrieving…") : t("Ask →")}
                       </button>
                     </div>
                   </form>
                   {answer && (
                     <div className="answer" aria-live="polite">
-                      <span className="eyebrow">{answer.mode}</span>
+                      <span className="eyebrow">{t(answer.mode)}</span>
                       <p className="original">{answer.answer}</p>
                       {answer.citations.map((c, i) => (
                         <div className="citation" key={i}>
@@ -678,7 +778,7 @@ export default function Page() {
                           </a>
                           <small>
                             {c.authority} ·{" "}
-                            {c.issued ? date(c.issued) : c.reviewed}
+                            {c.issued ? formatDate(c.issued) : c.reviewed}
                             {c.demo ? " · DEMO — NOT A REAL WARNING" : ""}
                           </small>
                         </div>
@@ -686,9 +786,9 @@ export default function Page() {
                     </div>
                   )}
                   <p className="fine-print">
-                    AI must not generate flood predictions or evacuation
-                    decisions. District information cannot establish
-                    village-level safety.
+                    {t(
+                      "AI must not generate flood predictions or evacuation decisions. District information cannot establish village-level safety.",
+                    )}
                   </p>
                 </section>
               )}
@@ -696,8 +796,8 @@ export default function Page() {
                 <section>
                   <input
                     className="guidance-search"
-                    aria-label="Search preparedness"
-                    placeholder="Search preparedness guidance…"
+                    aria-label={t("Search preparedness")}
+                    placeholder={t("Search preparedness guidance…")}
                     value={q}
                     onChange={(e) => setQ(e.target.value)}
                   />
@@ -711,38 +811,45 @@ export default function Page() {
                       .map((g, i) => (
                         <article className="panel guidance" key={g.id}>
                           <span className="guide-number">0{i + 1}</span>
-                          <span className="pill">Reviewed English</span>
+                          <span className="pill">{t("Reviewed English")}</span>
                           <h2>{g.title}</h2>
-                          <p>{g.body}</p>
+                          <p
+                            lang={g.language}
+                            dir={g.language === "en" ? "ltr" : "rtl"}
+                          >
+                            {g.body}
+                          </p>
                           <small>
-                            {g.authority} · reviewed {g.reviewed}
+                            {g.authority} · {t("reviewed")} {g.reviewed}
                           </small>
                           <a
                             href={g.source_url}
                             target="_blank"
                             rel="noreferrer"
                           >
-                            Official information channel ↗
+                            {t("Official information channel ↗")}
                           </a>
                         </article>
                       ))}
                   </div>
                   <div className="notice">
-                    Urdu and Sindhi emergency guidance translations are drafts
-                    and are not published. No helplines, shelters or routes are
-                    inferred.
+                    {t(
+                      "Urdu and Sindhi emergency guidance translations are drafts and are not published. No helplines, shelters or routes are inferred.",
+                    )}
                   </div>
                 </section>
               )}
               {tab === "settings" && (
                 <section className="panel settings-panel">
-                  <h2>District notifications</h2>
+                  <h2>{t("District notifications")}</h2>
                   <p>
                     {demo
-                      ? "Demo mode allows local mock notifications only."
-                      : "External channels require operator configuration and a verified destination."}
+                      ? t("Demo mode allows local mock notifications only.")
+                      : t(
+                          "External channels require operator configuration and a verified destination.",
+                        )}
                   </p>
-                  <label>Districts</label>
+                  <label>{t("Districts")}</label>
                   <div className="district-options">
                     {districts.map((d) => (
                       <label key={d}>
@@ -757,42 +864,50 @@ export default function Page() {
                             )
                           }
                         />
-                        {d}
+                        {t(d)}
                       </label>
                     ))}
                   </div>
-                  <label htmlFor="channel">Delivery channel</label>
+                  <label htmlFor="channel">{t("Delivery channel")}</label>
                   <select
                     id="channel"
                     value={channel}
                     onChange={(e) => setChannel(e.target.value)}
                   >
-                    <option value="mock">Local mock inbox</option>
+                    <option value="mock">{t("Local mock inbox")}</option>
                     {!demo && (
                       <>
-                        <option value="expo">Mobile push (Expo)</option>
+                        <option value="expo">{t("Mobile push (Expo)")}</option>
                         <option value="telegram">Telegram</option>
                       </>
                     )}
                   </select>
                   {channel !== "mock" && (
                     <label>
-                      Provider destination
+                      {t("Provider destination")}
                       <input
                         value={destination}
                         onChange={(e) => setDestination(e.target.value)}
                         placeholder={
                           channel === "expo"
-                            ? "Expo push token from your physical device"
-                            : "Telegram chat ID"
+                            ? t("Expo push token from your physical device")
+                            : t("Telegram chat ID")
                         }
                       />
                     </label>
                   )}
                   <p>
-                    Notification language: {language}. A warning is sent only in
-                    its reviewed publication language; English content is not
-                    silently machine translated.
+                    {t("Notification language:")}
+                    {t(
+                      language === "en"
+                        ? "English"
+                        : language === "ur"
+                          ? "Urdu"
+                          : "Sindhi",
+                    )}
+                    {t(
+                      ". A warning is sent only in its reviewed publication language; English content is not silently machine translated.",
+                    )}
                   </p>
                   <label className="consent">
                     <input
@@ -800,8 +915,9 @@ export default function Page() {
                       checked={consent}
                       onChange={(e) => setConsent(e.target.checked)}
                     />
-                    I consent to storing these preferences and destination for
-                    district notifications.
+                    {t(
+                      "I consent to storing these preferences and destination for district notifications.",
+                    )}
                   </label>
                   <div className="button-row">
                     <button
@@ -810,13 +926,13 @@ export default function Page() {
                       onClick={subscribe}
                     >
                       {saved
-                        ? "Save preferences"
-                        : "Subscribe to district alerts"}
+                        ? t("Save preferences")
+                        : t("Subscribe to district alerts")}
                     </button>
                     {saved && (
                       <>
                         <button className="outline" onClick={loadInbox}>
-                          Refresh delivery history
+                          {t("Refresh delivery history")}
                         </button>
                         <button
                           className="danger"
@@ -839,14 +955,14 @@ export default function Page() {
                             }
                           }}
                         >
-                          Unsubscribe & delete data
+                          {t("Unsubscribe & delete data")}
                         </button>
                       </>
                     )}
                   </div>
                   {notice && (
                     <p role="status" className="notice">
-                      {notice}
+                      {t(notice)}
                     </p>
                   )}
                   {inbox.map((d, i) => (
@@ -858,9 +974,9 @@ export default function Page() {
                     </div>
                   ))}
                   <small>
-                    Keep this browser’s subscription token to manage or delete
-                    your subscription. Losing browser storage loses this
-                    management capability.
+                    {t(
+                      "Keep this browser’s subscription token to manage or delete your subscription. Losing browser storage loses this management capability.",
+                    )}
                   </small>
                 </section>
               )}
@@ -869,11 +985,12 @@ export default function Page() {
           <footer>
             <span className="footer-logo">≈</span>
             <p>
-              <strong>An independent information service.</strong> Sindh Flood
-              Watch is not an official government warning authority. Do not rely
-              on this as your sole emergency warning channel.
+              <strong>{t("An independent information service.")}</strong>{" "}
+              {t(
+                "Sindh Flood Watch is not an official government warning authority. Do not rely on this as your sole emergency warning channel.",
+              )}
             </p>
-            <span>SOURCES OVER SPECULATION</span>
+            <span>{t("SOURCES OVER SPECULATION")}</span>
           </footer>
         </main>
       </div>
@@ -881,7 +998,10 @@ export default function Page() {
   );
 }
 
-function AdminPanel() {
+function AdminPanel({ language }: { language: Language }) {
+  const t = (text: string) => translate(language, text);
+  const formatDate = (value: number | null | undefined) =>
+    date(value, language);
   const [username, setUsername] = useState("admin"),
     [password, setPassword] = useState(""),
     [authenticated, setAuthenticated] = useState(false),
@@ -922,11 +1042,12 @@ function AdminPanel() {
   if (!authenticated)
     return (
       <section className="panel login">
-        <div className="eyebrow">RESTRICTED WORKSPACE</div>
-        <h1>Administrator sign in</h1>
+        <div className="eyebrow">{t("RESTRICTED WORKSPACE")}</div>
+        <h1>{t("Administrator sign in")}</h1>
         <p>
-          Accounts are created by the local operator. Public administrator
-          registration is disabled.
+          {t(
+            "Accounts are created by the local operator. Public administrator registration is disabled.",
+          )}
         </p>
         <form
           onSubmit={async (e) => {
@@ -945,7 +1066,7 @@ function AdminPanel() {
           }}
         >
           <label>
-            Username
+            {t("Username")}
             <input
               autoComplete="username"
               value={username}
@@ -953,7 +1074,7 @@ function AdminPanel() {
             />
           </label>
           <label>
-            Password
+            {t("Password")}
             <input
               type="password"
               autoComplete="current-password"
@@ -961,20 +1082,21 @@ function AdminPanel() {
               onChange={(e) => setPassword(e.target.value)}
             />
           </label>
-          <button className="primary">Sign in securely →</button>
+          <button className="primary">{t("Sign in securely →")}</button>
         </form>
-        <p role="alert">{message}</p>
+        <p role="alert">{t(message)}</p>
       </section>
     );
   return (
     <>
       <div className="page-heading">
         <div>
-          <div className="eyebrow">ADMINISTRATOR WORKSPACE</div>
-          <h1>Review before you publish.</h1>
+          <div className="eyebrow">{t("ADMINISTRATOR WORKSPACE")}</div>
+          <h1>{t("Review before you publish.")}</h1>
           <p>
-            Publication requires approval. Only published, current advisories
-            generate warning jobs.
+            {t(
+              "Publication requires approval. Only published, current advisories generate warning jobs.",
+            )}
           </p>
         </div>
         <button
@@ -984,14 +1106,14 @@ function AdminPanel() {
             setAuthenticated(false);
           }}
         >
-          Sign out
+          {t("Sign out")}
         </button>
       </div>
       <div className="admin-grid">
         <section className="panel admin-form">
-          <h2>{editing ? "Edit draft" : "Create an advisory"}</h2>
+          <h2>{editing ? t("Edit draft") : t("Create an advisory")}</h2>
           <label>
-            Extract PDF or text bulletin (max 2 MiB)
+            {t("Extract PDF or text bulletin (max 2 MiB)")}
             <input
               type="file"
               accept=".pdf,.txt"
@@ -1041,7 +1163,7 @@ function AdminPanel() {
             {(["title", "authority", "source_url", "severity"] as const).map(
               (k) => (
                 <label key={k}>
-                  {k.replace("_", " ")}
+                  {t(k.replace("_", " "))}
                   <input
                     required
                     value={form[k]}
@@ -1051,14 +1173,14 @@ function AdminPanel() {
               ),
             )}
             <label>
-              Supersedes advisory ID (optional update)
+              {t("Supersedes advisory ID (optional update)")}
               <input
                 value={form.supersedes}
                 onChange={(e) => field("supersedes", e.target.value)}
               />
             </label>
             <label>
-              Original bulletin wording
+              {t("Original bulletin wording")}
               <textarea
                 required
                 rows={6}
@@ -1067,7 +1189,7 @@ function AdminPanel() {
               />
             </label>
             <label>
-              Intended districts (comma-separated, exact names)
+              {t("Intended districts (comma-separated, exact names)")}
               <input
                 value={form.districts.join(",")}
                 onChange={(e) =>
@@ -1079,20 +1201,20 @@ function AdminPanel() {
               />
             </label>
             <label>
-              Hazard
+              {t("Hazard")}
               <select
                 value={form.hazard}
                 onChange={(e) => field("hazard", e.target.value)}
               >
-                <option value="river">River flooding</option>
-                <option value="flash">Flash flooding</option>
-                <option value="urban">Urban flooding</option>
+                <option value="river">{t("River flooding")}</option>
+                <option value="flash">{t("Flash flooding")}</option>
+                <option value="urban">{t("Urban flooding")}</option>
               </select>
             </label>
             <div className="two-col">
               {(["issued", "expires"] as const).map((k) => (
                 <label key={k}>
-                  {k} (UTC)
+                  {t(k)} (UTC)
                   <input
                     required
                     type="datetime-local"
@@ -1103,14 +1225,14 @@ function AdminPanel() {
               ))}
             </div>
             <label>
-              Publication language
+              {t("Publication language")}
               <select
                 value={form.language}
                 onChange={(e) => field("language", e.target.value)}
               >
-                <option value="en">English</option>
-                <option value="ur">Urdu</option>
-                <option value="sd">Sindhi</option>
+                <option value="en">{t("English")}</option>
+                <option value="ur">{t("Urdu")}</option>
+                <option value="sd">{t("Sindhi")}</option>
               </select>
             </label>
             <label className="consent">
@@ -1119,7 +1241,7 @@ function AdminPanel() {
                 checked={form.demo}
                 onChange={(e) => field("demo", e.target.checked)}
               />
-              Fictional demo — mock delivery only
+              {t("Fictional demo — mock delivery only")}
             </label>
             <label className="consent">
               <input
@@ -1129,37 +1251,47 @@ function AdminPanel() {
                   field("translation_reviewed", e.target.checked)
                 }
               />
-              I have completed human review of this translation
+              {t("I have completed human review of this translation")}
             </label>
             <button className="primary">
-              {editing ? "Save edit & reset approval" : "Save draft for review"}
+              {editing
+                ? t("Save edit & reset approval")
+                : t("Save draft for review")}
             </button>
           </form>
           <p role="status">{message}</p>
         </section>
         <section className="panel">
           <div className="section-heading">
-            <h2>Publication queue</h2>
+            <h2>{t("Publication queue")}</h2>
             <button className="outline" onClick={load}>
-              ↻ Refresh
+              {t("↻ Refresh")}
             </button>
           </div>
           {rows.map((a) => (
             <article className="queue-item" key={a.id}>
               <span className="pill">
-                {a.state} · rev {a.revision}
+                {t(a.state)} · rev {a.revision}
               </span>
               {a.demo && (
-                <p className="demo-label">DEMO — NOT A REAL WARNING</p>
+                <p className="demo-label">{t("DEMO — NOT A REAL WARNING")}</p>
               )}
               <h3>{a.title}</h3>
-              <p className="original">{a.body}</p>
+              <p
+                className="original"
+                lang={a.language}
+                dir={a.language === "en" ? "ltr" : "rtl"}
+              >
+                {a.body}
+              </p>
               <small>
-                ID: {a.id}
+                {t("ID:")}
+                {a.id}
                 <br />
-                Preview: {a.districts.join(", ")} · {a.language} · {a.severity}
+                {t("Preview:")}
+                {a.districts.join(", ")} · {a.language} · {a.severity}
                 <br />
-                {date(a.issued)} → {date(a.expires)}
+                {formatDate(a.issued)} → {formatDate(a.expires)}
                 <br />
                 {a.source_url}
               </small>
@@ -1190,7 +1322,7 @@ function AdminPanel() {
                       });
                     }}
                   >
-                    Edit
+                    {t("Edit")}
                   </button>
                 )}
                 {(a.state === "draft"
@@ -1203,7 +1335,7 @@ function AdminPanel() {
                 ).map((action) => (
                   <button
                     className={action === "publish" ? "primary" : "outline"}
-                    key={action}
+                    key={t(action)}
                     onClick={async () => {
                       try {
                         await api("/admin/advisories/" + a.id + "/" + action, {
@@ -1216,7 +1348,7 @@ function AdminPanel() {
                       }
                     }}
                   >
-                    {action}
+                    {t(action)}
                   </button>
                 ))}
               </div>
@@ -1225,7 +1357,7 @@ function AdminPanel() {
         </section>
       </div>
       <section className="panel health">
-        <h2>Worker, sources & audit trail</h2>
+        <h2>{t("Worker, sources & audit trail")}</h2>
         <pre>{JSON.stringify(health, null, 2)}</pre>
       </section>
     </>

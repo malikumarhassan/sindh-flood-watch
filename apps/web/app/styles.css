@@ -5,6 +5,23 @@
   --line: #e0e5de;
   --bg: #f5f5f0;
 }
+html[dir="rtl"] body,
+html[dir="rtl"] h1,
+html[dir="rtl"] h2,
+html[dir="rtl"] h3 {
+  font-family: "Noto Sans Arabic", "Segoe UI", Tahoma, sans-serif;
+  letter-spacing: normal;
+  line-height: 1.9;
+}
+html[dir="rtl"] .eyebrow,
+html[dir="rtl"] .brand-small {
+  letter-spacing: normal;
+}
+input[type="url"],
+input[type="datetime-local"],
+input[type="password"] {
+  direction: ltr;
+}
 * {
   box-sizing: border-box;
 }

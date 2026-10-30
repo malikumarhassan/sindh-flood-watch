@@ -16,7 +16,7 @@ from sqlalchemy import delete, select, text
 from sqlalchemy.exc import SQLAlchemyError
 
 from services.api.core import DEMO, DISTRICTS, audit, digest, enqueue, public, uid
-from services.api.chat_answers import advisory_answer
+from services.api.chat_answers import advisory_answer, chat_text
 from services.api.db import (
     Admin,
     Advisory,
@@ -467,34 +467,74 @@ class Question(BaseModel):
     question: str = Field(min_length=1, max_length=1000)
     district: str = ""
     demo: bool = False
+    language: Literal["en", "ur", "sd"] = "en"
 
 
 @app.post("/chat")
 def chat(data: Question, db=Depends(db_session)):
     question = data.question.lower()
     district = next((d for d in DISTRICTS if d.lower() in question), data.district)
-    if any(w in question for w in ["predict", "safe", "evacuat", "route", "shelter", "helpline"]):
+    if any(
+        w in question
+        for w in [
+            "predict",
+            "safe",
+            "evacuat",
+            "route",
+            "shelter",
+            "helpline",
+            "محفوظ",
+            "حفاظت",
+            "پیش گو",
+            "اڳڪٿي",
+            "انخلا",
+            "پناہ",
+            "پناهه",
+            "راست",
+            "رستو",
+        ]
+    ):
         return {
-            "answer": "I do not have verified information for this question",
+            "answer": chat_text(data.language, "missing"),
             "citations": [],
             "mode": "structured retrieval",
         }
-    if any(w in question for w in ["prepar", "connectivity", "information plan"]):
+    if any(w in question for w in ["prepar", "connectivity", "information plan", "تیاری", "تياري", "رابط"]):
         docs = preparedness()
         return {
-            "answer": "\n\n".join(d["body"] for d in docs),
+            "answer": "\n\n".join(d["body"] for d in docs)
+            if data.language == "en"
+            else chat_text(data.language, "guidance"),
             "citations": docs,
             "mode": "structured retrieval",
         }
-    if not any(w in question for w in ["advisory", "warning", "flood", "latest", "update"]):
+    if not any(
+        w in question
+        for w in [
+            "advisory",
+            "warning",
+            "flood",
+            "latest",
+            "update",
+            "اطلاع",
+            "سیلاب",
+            "سيلاب",
+            "ٻوڏ",
+            "تاز",
+            "رپورٹ",
+            "رپورٽ",
+            "خبردار",
+            "چتاء",
+        ]
+    ):
         return {
-            "answer": "I do not have verified information for this question",
+            "answer": chat_text(data.language, "missing"),
             "citations": [],
             "mode": "structured retrieval",
         }
     if not district:
         return {
-            "answer": "Which district in Sindh would you like information for?",
+            "answer": chat_text(data.language, "district"),
             "citations": [],
             "mode": "structured retrieval",
         }
@@ -502,14 +542,14 @@ def chat(data: Question, db=Depends(db_session)):
     rows = [a for a in rows if a["current"]]
     if not rows:
         return {
-            "answer": "I do not have verified information for this question",
+            "answer": chat_text(data.language, "missing"),
             "citations": [],
             "mode": "structured retrieval",
         }
     a = rows[0]
     # Keep replies short and source-bound; preserve the full bulletin in its record.
     return {
-        "answer": advisory_answer(a, district),
+        "answer": advisory_answer(a, district, data.language),
         "citations": [
             {
                 "title": a["title"],
