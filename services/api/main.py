@@ -16,6 +16,7 @@ from sqlalchemy import delete, select, text
 from sqlalchemy.exc import SQLAlchemyError
 
 from services.api.core import DEMO, DISTRICTS, audit, digest, enqueue, public, uid
+from services.api.chat_answers import advisory_answer
 from services.api.db import (
     Admin,
     Advisory,
@@ -506,9 +507,9 @@ def chat(data: Question, db=Depends(db_session)):
             "mode": "structured retrieval",
         }
     a = rows[0]
-    # Return stored evidence verbatim. Documents never become model instructions.
+    # Keep replies short and source-bound; preserve the full bulletin in its record.
     return {
-        "answer": a["body"],
+        "answer": advisory_answer(a, district),
         "citations": [
             {
                 "title": a["title"],

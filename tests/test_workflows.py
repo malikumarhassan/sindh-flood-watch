@@ -368,3 +368,20 @@ def test_demo_seed_is_idempotent_and_never_populates_live_collection(system):
     assert {a["districts"][0] for a in records} == {"Dadu", "Sukkur", "Thatta"}
     assert all(a["demo"] and DEMO in a["body"] for a in records)
     assert client.get("/advisories?demo=false").json() == []
+
+def test_chat_summarizes_historical_report_without_dumping_tables(system):
+    client, _ = system
+    authenticate(client)
+    data = bulletin(
+        title='DEMO - Historical flood report',
+        issued='2022-11-18T00:00:00+00:00',
+        body=DEMO + '. Historical report. Figures cover Sindh overall, not Dadu specifically.\nDeaths and injured\nInfrastructure and houses\nBISP relief assistance\n' + 'raw table row 12345\n' * 100,
+    )
+    publish(client, data)
+    answer = client.post('/chat', json={'question': 'Latest Dadu advisory?', 'demo': True}).json()
+    assert len(answer['answer']) < 800
+    assert '18 November 2022' in answer['answer']
+    assert 'not a current flood warning' in answer['answer']
+    assert 'province-wide, not specific to Dadu' in answer['answer']
+    assert 'raw table row' not in answer['answer']
+    assert answer['citations'][0]['demo'] is True
